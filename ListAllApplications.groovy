@@ -1,8 +1,8 @@
-//Tested with IBM UrbanCode Deploy 6.2.3.1
+//Tested with IBM UrbanCode Deploy 6.2.4.1
 //Command line usage:
 //groovy -cp udclient.jar ListAllApplications.groovy https://hostname:8443 username password
-//Usage from a UrbanCode Deploy process does not require any input parameters, but you can execute the following from a Shell step in order to have the Apache HttpCore classes on the classpath:
-//${p:agent/GROOVY_HOME}${p:agent/sys.file.separator}bin${p:agent/sys.file.separator}groovy -cp ${p:agent/AGENT_HOME}${p:agent/sys.file.separator}opt${p:agent/sys.file.separator}udclient${p:agent/sys.file.separator}udclient.jar ListAllApplications.groovy 
+//Usage from a UrbanCode Deploy process does not require any input parameters, but you can execute the following from a Shell step in order to have the udclient classes on the classpath:
+//${p:agent/GROOVY_HOME}/bin/groovy -cp ${p:agent/AGENT_HOME}/opt/udclient/udclient.jar groovyScript.groovy
 //Example output
 //Applications:
 //
@@ -29,11 +29,13 @@ import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.SSLContextBuilder;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.HttpClientBuilder;
+import com.urbancode.commons.httpcomponentsutil.HttpClientBuilder;
 import groovy.json.JsonSlurper;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.lang.System;
+import java.net.URLEncoder;
+import org.apache.commons.lang.StringUtils;
 
 class Credentials{
 	String serverURL;
@@ -67,41 +69,66 @@ class Credentials{
 		}
 		
 	}
-    //Initializes an HttpClient that accepts self-signed certificates
+    //Initializes an HttpClient that accepts all certificates
+	//depends on import com.urbancode.commons.httpcomponentsutil.HttpClientBuilder 
+	//included in HttpComponents-Util.jar, which is partly included in udclient.jar
 	HttpClient initializeClient(String username,String password){
-		//Accept self-signed certificates
-		SSLContextBuilder builder=new SSLContextBuilder();
-		builder.loadTrustMaterial(null,new TrustSelfSignedStrategy());
-		SSLConnectionSocketFactory sslsf=new SSLConnectionSocketFactory(builder.build());
-		//Do basic Authentication
-		CredentialsProvider provider=new BasicCredentialsProvider();
-		UsernamePasswordCredentials credentials=new UsernamePasswordCredentials(username,password);
-		provider.setCredentials(AuthScope.ANY,credentials);
-		HttpClient client=HttpClientBuilder.create().setSSLSocketFactory(sslsf).setDefaultCredentialsProvider(provider).build();
-		return client;
+        HttpClientBuilder builder = new HttpClientBuilder();
+		builder.setPreemptiveAuthentication(true);
+        builder.setUsername(username);
+        builder.setPassword(password);
+		//Accept all certificates
+        builder.setTrustAllCerts(true);
+		//use proxy if defined
+        if (!StringUtils.isEmpty(System.getenv("PROXY_HOST")) &&
+            StringUtils.isNumeric(System.getenv("PROXY_PORT")))
+        {
+            builder.setProxyHost(System.getenv("PROXY_HOST"));
+            builder.setProxyPort(Integer.valueOf(System.getenv("PROXY_PORT")));
+        }
+
+        if (!StringUtils.isEmpty(System.getenv("PROXY_USERNAME")) &&
+            !StringUtils.isEmpty(System.getenv("PROXY_PASSWORD")))
+        {
+            builder.setProxyUsername(System.getenv("PROXY_USERNAME"));
+            builder.setProxyPassword(System.getenv("PROXY_PASSWORD"));
+        }
+
+		return builder.buildClient();
 	}
 	//returns a JSON Array that contains a JSON Object for each Application
-	Object getApplications(client, String serverURL){
-        //prepare the GET call to the REST endpoint /cli/application
-		HttpRequest request = new HttpGet(serverURL+"/cli/application");
-		//Execute the REST call
+	Object getApplications(HttpClient client, String serverURL){
+        //prepare the GET call to the REST endpoint /cli/application		
+		applications=performGetRequest(client,serverURL+"/cli/application" )
+		return applications;
+	}
+
+	//Perform a given HttpRequest, assume answer is <= 299 , parse the outcome as JSON. Also release the connection for the Request.
+	Object performGetRequest(HttpClient client, String requestURL){
+		HttpRequest request = new HttpGet(requestURL);
+		//Execute the REST GET call
 		HttpResponse response = client.execute(request); 
 		//Check that the call was successful
         int statusCode = response.getStatusLine().getStatusCode(); 
-        assert (statusCode == HttpStatus.SC_OK); 
-        //Convert the InputStream returned by response.getEntity().getContent() to a String 
-		BufferedReader reader=new BufferedReader(new InputStreamReader(response.getEntity().getContent(),"UTF-8"));
-        StringBuilder builder=new StringBuilder();
-        for(String line=null;(line=reader.readLine())!=null;){
-               builder.append(line).append("\n");
+		if ( statusCode > 299 ) {
+			println "ERROR : HttpGet to: "+requestURL+ " returned: " +statusCode;
+			return null;
+			}
+		else{	
+			//Convert the InputStream returned by response.getEntity().getContent() to a String 
+			BufferedReader reader=new BufferedReader(new InputStreamReader(response.getEntity().getContent(),"UTF-8"));
+			StringBuilder builder=new StringBuilder();
+			for(String line=null;(line=reader.readLine())!=null;){
+				   builder.append(line).append("\n");
+			}
+			//Parse the returned JSON 
+			//http://groovy-lang.org/json.html
+			JsonSlurper slurper = new JsonSlurper();
+			objects=slurper.parseText(builder.toString());
+			//Ensure to release the connection
+			request.releaseConnection();
+			return objects;
 		}
-		//Parse the returned JSON 
-		//http://groovy-lang.org/json.html
-		JsonSlurper slurper = new JsonSlurper();
-		applications=slurper.parseText(builder.toString());
-		//Ensure to release the connection
-		request.releaseConnection();
-		return applications;
 	}
 	
 	//Main script contents
@@ -113,7 +140,8 @@ class Credentials{
 	//Use a groovy closure with the implicit parameter "it"
 	//http://groovy-lang.org/closures.html
 	//http://docs.groovy-lang.org/latest/html/groovy-jdk/java/util/Collection.html#each%28groovy.lang.Closure%29
-	applications.each{
+	if (applications){
+		applications.each{
 		println "Name: "+it.name;
 		println "Description: "+it.description;
 		println "Tags: ";
@@ -121,6 +149,5 @@ class Credentials{
 			println "      "+it.name;
 		}
 		println ""
+		}	
 	}
-	
-	
