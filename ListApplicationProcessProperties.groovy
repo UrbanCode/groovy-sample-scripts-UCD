@@ -33,7 +33,8 @@ import groovy.json.JsonSlurper;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.lang.System;
-import java.net.URLEncoder
+import java.net.URLEncoder;
+import org.apache.commons.lang.StringUtils;
 
 class Credentials{
 	String serverURL;
@@ -73,10 +74,23 @@ class Credentials{
 	HttpClient initializeClient(String username,String password){
         HttpClientBuilder builder = new HttpClientBuilder();
 		builder.setPreemptiveAuthentication(true);
-        builder.setUsername(username);
-        builder.setPassword(password);
+        	builder.setUsername(username);
+        	builder.setPassword(password);
 		//Accept all certificates
-        builder.setTrustAllCerts(true);
+		builder.setTrustAllCerts(true);
+		//Use proxy if defined
+		if (!StringUtils.isEmpty(System.getenv("PROXY_HOST")) &&
+            	StringUtils.isNumeric(System.getenv("PROXY_PORT")))
+       		 {
+          		  builder.setProxyHost(System.getenv("PROXY_HOST"));
+         		   builder.setProxyPort(Integer.valueOf(System.getenv("PROXY_PORT")));
+       		 }
+      	        if (!StringUtils.isEmpty(System.getenv("PROXY_USERNAME")) &&
+         		   !StringUtils.isEmpty(System.getenv("PROXY_PASSWORD")))
+       		{
+          		  builder.setProxyUsername(System.getenv("PROXY_USERNAME"));
+          		  builder.setProxyPassword(System.getenv("PROXY_PASSWORD"));
+     		}
 		return builder.buildClient();
 	}
 	//returns a JSON Array that contains a JSON Object for each Application
