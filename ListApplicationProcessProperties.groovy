@@ -1,8 +1,8 @@
 //Tested with IBM UrbanCode Deploy 6.2.4
 //Command line usage:
 //groovy -cp udclient.jar ListApplicationprocessProperties.groovy https://hostname:8443 username password
-//Usage from a UrbanCode Deploy process does not require any input parameters, but you can execute the following from a Shell step in order to have the Apache HttpCore classes on the classpath:
-//${p:agent/GROOVY_HOME}${p:agent/sys.file.separator}bin${p:agent/sys.file.separator}groovy -cp ${p:agent/AGENT_HOME}${p:agent/sys.file.separator}opt${p:agent/sys.file.separator}udclient${p:agent/sys.file.separator}udclient.jar ListAllApplications.groovy 
+//Usage from a UrbanCode Deploy process does not require any input parameters, but you can execute the following from a Shell step in order to have the udclient.jar classes on the classpath:
+//${p:agent/GROOVY_HOME}/bin/groovy -cp ${p:agent/AGENT_HOME}/opt/udclient/udclient.jar ListApplicationprocessProperties.groovy 
 //Description:
 //This process lists all applications, all application processes, all names, labels, default values of application process properties.
 //Example output:
