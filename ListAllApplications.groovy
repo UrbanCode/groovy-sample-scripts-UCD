@@ -1,3 +1,7 @@
+//This script is licensed under:
+//Apache License
+//Version 2.0, January 2004
+//http://www.apache.org/licenses/
 //Tested with IBM UrbanCode Deploy 6.2.4.1
 //Command line usage:
 //groovy -cp udclient.jar ListAllApplications.groovy https://hostname:8443 username password
