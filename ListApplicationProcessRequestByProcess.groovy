@@ -2,7 +2,7 @@
 //Apache License
 //Version 2.0, January 2004
 //http://www.apache.org/licenses/
-//Tested with IBM UrbanCode Deploy 6.2.5.0
+//Tested with IBM UrbanCode Deploy 6.2.5.0 and Java 8
 //The script requires at least UrbanCode Deploy 6.2.2 because it uses the APIs:
 //https://www.ibm.com/support/knowledgecenter/SS4GSP_6.2.2/com.ibm.udeploy.api.doc/topics/rest_cli_applicationprocessrequest_count_get.html
 //https://www.ibm.com/support/knowledgecenter/SS4GSP_6.2.2/com.ibm.udeploy.api.doc/topics/rest_cli_applicationprocessrequest_get.html
@@ -29,6 +29,7 @@ Environment: TEST
 Application process: Deploy
 Date: 03/07/2017
 Count: 9
+.....
 **/
 
 
@@ -64,7 +65,8 @@ class Parameters{
 	String initialTimeStamp="2016-12-31 00:00:00";
 }
 
-//only works on Java 1.7 and higher because it uses java.util.Objects to define the equals and hashCode methods
+//Overrides equals and hashCode to implement comparison by equality of contained field values, rather than object equality
+//This only works on Java 1.7 and higher because it uses java.util.Objects to define the equals and hashCode methods
 class ApplicationProcessRequest{
 	String date;
 	String application;
@@ -87,8 +89,6 @@ class ApplicationProcessRequest{
     public int hashCode() {
         return Objects.hash(date, application,environment, applicationProcess);
     }
-	
-	
 }	
 
 
@@ -148,8 +148,8 @@ class ApplicationProcessRequest{
 		return builder.buildClient();
 	}
 	
-    //returns a Hashtable that contains the application process request ids from a given start time in milliseconds (startedAfter) by breaking the request in chunks of chunkSize
-
+    //returns a Hashtable that contains the ApplicationProcessRequest as the key and its count as the value
+	//from a given start time in milliseconds (startedAfter) by breaking the request in chunks of chunkSize
 	Hashtable <ApplicationProcessRequest, Integer> getApplicationProcessRequests(HttpClient client, String serverURL, long startedAfter, int chunkSize){
 		
 		//store the ApplicationProcessRequest object as the key, and the count as the value
@@ -184,21 +184,11 @@ class ApplicationProcessRequest{
 				else{
 					requestsPerDate.put(request,1);
 				}
-				
-				
 			}	
 		}
 		return requestsPerDate;
 	}
-	//return the trace of a given application process request
-	Object getApplicationProcessRequestInfo(HttpClient client, String serverURL, String applicationRequestId){
 
-		//prepare GET request to https://localhost:8443//cli/applicationProcessRequest/info/{request}
-		def applicationProcessRequestInfo = performGetRequest(client, serverURL+"/cli/applicationProcessRequest/info/"+applicationRequestId);
-		return applicationProcessRequestInfo;
-	}
-	
-	
 	//Perform a given HttpRequest, assume answer is <= 299 , parse the outcome as JSON. Also release the connection for the Request.
 	Object performGetRequest(HttpClient client, String requestURL){
 		HttpRequest request = new HttpGet(requestURL);
@@ -235,9 +225,6 @@ class ApplicationProcessRequest{
 		return hours+":"+minutes+":"+seconds
 		
 	}
-	
-
-
 	
 	//Main script contents
 	Parameters parameters = new Parameters();
