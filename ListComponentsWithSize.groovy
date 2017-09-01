@@ -162,7 +162,7 @@ class Credentials{
 		println "cleanupCountToKeep: "+it.cleanupCountToKeep;
         println "cleanupDaysToKeep: "+it.cleanupDaysToKeep;
 		def versions = getVersions(client,credentials.serverURL,it.id);
-		def totalSize = 0;
+		long totalSize = 0L;
 		if(versions){
 			versions.each{
 				println "  Version Name = "+it.name;
