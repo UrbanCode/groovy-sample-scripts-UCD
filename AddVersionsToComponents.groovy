@@ -153,36 +153,6 @@ void addVersionsToComponent(HttpClient client, String serverURL, String componen
 	}
 }
 
-//Perform a given HttpRequest, assume answer is <= 299 , parse the outcome as JSON. Also release the connection for the Request.
-Object performPutRequest(HttpClient client, String requestURL, String payload){
-	HttpRequest putRequest = new HttpPut(requestURL);
-
-	putRequest.setEntity(new StringEntity(payload));
-	putRequest.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
-	//Execute the REST PUT call
-	HttpResponse response = client.execute(putRequest);
-	//Check that the call was successful
-	int statusCode = response.getStatusLine().getStatusCode();
-	if ( statusCode > 299 ) {
-		println "ERROR : HttpPut to: "+requestURL+ " returned: " +statusCode;
-
-	}else {
-		//Convert the InputStream returned by response.getEntity().getContent() to a String
-		BufferedReader reader=new BufferedReader(new InputStreamReader(response.getEntity().getContent(),"UTF-8"));
-		StringBuilder builder=new StringBuilder();
-		for(String line=null;(line=reader.readLine())!=null;){
-			builder.append(line).append("\n");
-		}
-		//Parse the returned JSON
-		//http://groovy-lang.org/json.html
-		JsonSlurper slurper = new JsonSlurper();
-		objects=slurper.parseText(builder.toString());
-		//Ensure to release the connection
-		putRequest.releaseConnection();
-		return objects;
-
-	}
-}
 
 //Perform a given HttpRequest, assume answer is <= 299. Also release the connection for the Request.
 Object performPostRequest(HttpClient client, String requestURL){
