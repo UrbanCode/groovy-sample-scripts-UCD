@@ -29,19 +29,22 @@ class Credentials{
 	String serverURL;
 	String username;
 	String password;
-	String appName;
-	int versionNumber;
-
 }
+
+class Parameters{
+	String applicationName;
+	int numberOfVersions;
+}
+
 //sets the values of the Credentials class which contains the server url and the username/password
-void initializeParameters(Credentials credentials){
+void initializeParameters(Credentials credentials, Parameters parameters){
 	//if the user provided the input parameters, we're running on the command line
 	if (args.size() == 5){
 		credentials.serverURL = args[0]
 		credentials.username = args[1]
 		credentials.password = args[2]
-		credentials.appName = args[3]
-		credentials.versionNumber = Integer.parseInt(args[4])
+		parameters.applicationName = args[3]
+		parameters.numberOfVersions = Integer.parseInt(args[4])
 	}
 	else{
 
@@ -129,7 +132,7 @@ Object getVersions(HttpClient client, String serverURL, String componentID){
 	return versions;
 }
 
-Object getComponentsForApplication(client, serverURL, String appName){
+Object getComponentsForApplication(client, serverURL, String applicationName){
 	componentsForApplication = new ArrayList();
 	components = getComponents(client, serverURL)
 	components.each{
@@ -138,7 +141,7 @@ Object getComponentsForApplication(client, serverURL, String appName){
 		component = getComponent(client, serverURL, componentId)
 		applications = component.applications
 		applications.each {
-			if(it.name.equals(appName)) {
+			if(it.name.equals(applicationName)) {
 				componentsForApplication.add(componentId)
 				println "Found Component name: "+componentName
 			}
@@ -148,16 +151,16 @@ Object getComponentsForApplication(client, serverURL, String appName){
 }
 
 void addVersionsToComponent(HttpClient client, String serverURL, String componentID, ArrayList versionNames) {
-	versionNames.forEach {
+	versionNames.each {
 		performPostRequest(client,serverURL+"/cli/version/createVersion?component="+componentID+"&name="+it)
 	}
 }
 
-
 //Perform a given HttpRequest, assume answer is <= 299. Also release the connection for the Request.
 Object performPostRequest(HttpClient client, String requestURL){
 	HttpRequest postRequest = new HttpPost(requestURL);
-	postRequest.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+	//Set the ACCEPT Header to indicate that the client expects to receive a json formatted response
+	postRequest.setHeader(HttpHeaders.ACCEPT, "application/json");
 	//Execute the REST POST call
 	HttpResponse response = client.execute(postRequest);
 	//Check that the call was successful
@@ -185,30 +188,28 @@ Object performPostRequest(HttpClient client, String requestURL){
 }
 
 //generate version names which have an initial integer prefix followed by a unique id
-ArrayList generateVersionNames(int versionNumber) {
+ArrayList generateVersionNames(int numberOfVersions) {
 	ArrayList names = new ArrayList()
-	for(int i =0; i < versionNumber; i++)
+	for(int i =0; i < numberOfVersions; i++)
 	{
 		UUID uuid = UUID.randomUUID();
 		String randomUUIDString = uuid.toString();
 
-		names.add(i +"_"+ randomUUIDString);
+		names.add(randomUUIDString);
 	}
 	return names
 }
 
 //Main script contents
 Credentials credentials = new Credentials();
-initializeParameters(credentials);
+Parameters parameters = new Parameters();
+initializeParameters(credentials, parameters);
 HttpClient client = initializeClient(credentials.username,credentials.password);
 //Loop over components and find if they belong to the wanted application
-componentIds = getComponentsForApplication(client,credentials.serverURL, credentials.appName)
+componentIds = getComponentsForApplication(client,credentials.serverURL, parameters.applicationName)
 
 componentIds.each {
 	componentId = it
-	versionNames = generateVersionNames(credentials.versionNumber)
+	versionNames = generateVersionNames(parameters.numberOfVersions)
 	addVersionsToComponent(client, credentials.serverURL, componentId, versionNames)
 }
-
-
-
