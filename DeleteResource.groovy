@@ -82,8 +82,6 @@ HttpClient initializeClient(String username,String password){
 //Perform a given HttpRequest, assume answer is <= 299 , parse the outcome as JSON. Also release the connection for the Request.
 void performDeleteRequest(HttpClient client, String requestURL){
 	HttpRequest deleteRequest = new HttpDelete(requestURL)
-
-	deleteRequest.setHeader(HttpHeaders.CONTENT_TYPE, "application/json")
 	//Execute the REST Delete call
 	HttpResponse response = client.execute(deleteRequest)
 	//Check that the call was successful
