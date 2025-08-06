@@ -7,7 +7,7 @@ import java.security.cert.X509Certificate
 
 def appProcessName = "UNINSTALL FROM INVENTORY"
 def app = "${p:application.id}"
-String envProp = "${p:GetEnvironmentProperty/lowerEnvironments}"
+String envProp = "${p:environment/lowerEnvironments}"
 String versionStatuses = "${p:GetVersionStatus/versionStatuses}"
 
 def envProps = envProp?.split(",") ?: []
@@ -22,6 +22,8 @@ envList.each { envName ->
 }
 
 private void runProcessOnEnvironment(String env, String applicationProcessName, String applicationName) {
+    
+    // Insecure HTTPS endpoint
     def trustAllCerts = [
             new X509TrustManager() {
                 X509Certificate[] getAcceptedIssuers() { null }
@@ -37,10 +39,11 @@ private void runProcessOnEnvironment(String env, String applicationProcessName, 
     HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.socketFactory)
     HttpsURLConnection.setDefaultHostnameVerifier { hostname, session -> true }
 
-    def targetUrl = new URL("https://10.134.119.177:8443/cli/applicationProcessRequest/request")
-    // Insecure HTTPS endpoint
-    def username = "admin"
-    def password = "admin"
+
+// 1. Define the target URL and create the JSON payload
+    def hostName = System.getenv("AH_WEB_URL");
+    def authToken = System.getenv("AUTH_TOKEN");
+    def targetUrl = new URL(hostName+"/cli/applicationProcessRequest/request")
 
     def payloadMap = [
             "application"       : applicationName,
@@ -62,15 +65,18 @@ private void runProcessOnEnvironment(String env, String applicationProcessName, 
     HttpsURLConnection connection = (HttpsURLConnection) targetUrl.openConnection()
 
     try {
-        def authString = "${username}:${password}".getBytes("UTF-8").encodeBase64().toString()
+        def authString = "PasswordIsAuthToken:${authToken}".getBytes("UTF-8").encodeBase64().toString()
         connection.setRequestProperty("Authorization", "Basic ${authString}")
+        // 2. Configure the connection for a PUT request
         connection.setRequestMethod("PUT")
         connection.setDoOutput(true)
         connection.setRequestProperty("Content-Type", "application/json")
         connection.setRequestProperty("Accept", "application/json")
 
+        // 3. Write the payload to the request body
         connection.getOutputStream().withStream { it.write(jsonPayload.getBytes("UTF-8")) }
 
+        // 4. Get the response from the server
         def responseCode = connection.responseCode
         println "Response Code: ${responseCode}"
         def responseBody = connection.inputStream.getText("UTF-8")
@@ -84,8 +90,3 @@ private void runProcessOnEnvironment(String env, String applicationProcessName, 
         connection.disconnect()
     }
 }
-
-
-
-
-
